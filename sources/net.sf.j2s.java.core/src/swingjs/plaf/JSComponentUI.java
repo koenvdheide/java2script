@@ -1393,7 +1393,8 @@ public class JSComponentUI extends ComponentUI
 		
 		switch (prop) {
 		case JLayeredPane.LAYER_PROPERTY:
-			setZ(getInheritedZ() + ((Integer)e.getNewValue()).intValue());
+			int layer = ((Integer)e.getNewValue()).intValue();
+			setZ(layer == CONTENT_PANE_Z ? layer : getInheritedZ() + layer);
 			setTainted();
 			return;
 		case "border":
@@ -3450,8 +3451,11 @@ public class JSComponentUI extends ComponentUI
 	 * @param z
 	 */
 	public void setZ(int z) {
-		if (z == CONTENT_PANE_Z) // content pane
+		if (z == CONTENT_PANE_Z) {
+			DOMNode.setStyle(domNode, "z-index", "");
+			DOMNode.setStyle(outerNode, "z-index", "");
 			return;
+		}
 		DOMNode.setPositionAbsolute(domNode);
 		DOMNode.setZ(domNode, z);
 		DOMNode.setZ(outerNode, z);// saves it
