@@ -10,6 +10,7 @@ import java.util.regex.Pattern;
 public class Test_Regex extends Test_ {
 
 	public static void main(String[] args) {
+		Test_RegexLookahead.main(args);
 
 		String st;
 		Pattern p;

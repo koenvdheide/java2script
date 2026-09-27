@@ -37,7 +37,6 @@ import java.util.regex.Matcher.RegExp;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import javajs.util.SB;
 import swingjs.JSUtil;
 
 /**
@@ -1412,11 +1411,6 @@ public final class Pattern {
 	private String pattern;
 
 	/**
-	 * full-group pattern for JavaScript start(int) and end(int)
-	 */
-	String 秘pattern;
-
-	/**
 	 * The original pattern flags.
 	 *
 	 * @serial
@@ -1433,11 +1427,6 @@ public final class Pattern {
 	 * Map the "name" of the "named capturing group" to its index in results
 	 */
 	transient volatile Map<String, Integer> namedGroups;
-
-	/**
-	 * group names, in order
-	 */
-	ArrayList<String> 秘groupNames = new ArrayList<String>();
 
 //	/**
 //	 * The number of capturing groups in this Pattern. Used by matchers to allocate
@@ -1876,10 +1865,10 @@ public final class Pattern {
 
 		checkFlags();
 		pattern = removeQEQuoting(pattern);
-		秘pattern = 秘getJSpattern(pattern);
 		// GLOBAL is always important, since it allows the
 		// RegExp to seek multiple times using an iterator
-		regexp = newRegExp(秘pattern, getFlags(flags | GLOBAL));
+		// Native capture indices preserve group positions without rewriting the pattern.
+		regexp = newRegExp(pattern, getFlags(flags | GLOBAL) + "d");
 		compiled = true;
 	}
 
@@ -1946,91 +1935,6 @@ public final class Pattern {
 	private static RegExp newRegExp(String 秘pattern, String flags) {
 		return /** @j2sNative new RegExp(秘pattern, flags) || */
 		null;
-	}
-
-	/**
-	 * if any groups exist, or even could exist,
-	 * 
-	 * @param pattern
-	 * @return
-	 */
-	private static String 秘getJSpattern(String pattern) {
-		if (pattern.indexOf("(") < 0)
-			return pattern;
-		SB p = new SB();
-		int ntext = 0;
-		boolean ignore = false;
-		boolean isChar = false;
-		for (int i1 = -1, plen = 0, i = 0, n = pattern.length(); i < n; i++) {
-			char c = pattern.charAt(i);
-			switch (c) {
-			default:
-				isChar = true;
-				break;
-			case '*':
-			case '+':
-			case '?':
-				isChar = true;
-				if (i1 < 0) {
-					p.appendC(c);
-					continue;
-				}
-				break;
-			case '[':
-				if (!ignore && i1 == -1) {
-					plen = p.length();
-					i1 = i;
-				}
-				ignore = true;
-				isChar = true;
-				break;
-			case ']':
-				ignore = false;
-				isChar = true;
-				break;
-			case ')':
-			case '(':
-				if (ignore)
-					break;
-				isChar = false;
-				boolean isQ = (c == '(' && pattern.charAt(i + 1) == '?');
-				boolean isColon = (isQ && pattern.charAt(i + 2) == ':');
-				int i0 = i;
-				if (isColon) {
-					i = pattern.indexOf(')', i);
-					p.append(pattern.substring(i0, i + 1));
-					continue;
-				}
-				if (i1 >= 0) {
-					p.insert(plen, "(?<秘" + ++ntext + ">");
-					p.append(")");
-					i1 = -1;
-				}
-				if (isQ) {
-					if (pattern.charAt(i + 2) == '<') {
-						i = pattern.indexOf(">", i);
-						p.append(pattern.substring(i0, i + 1));
-						continue;
-					}
-				}
-				break;
-			}
-			if (isChar) {
-				if (!ignore && i1 == -1) {
-					plen = p.length();
-					i1 = i;
-				}
-				if (c == '\\') {
-					p.appendC(c);
-					c = pattern.charAt(++i);
-				}
-			}
-			p.appendC(c);
-		}
-//		if (!haveStart) {
-//			p.insert(0, "(?<秘" + ++ntext + ">$.*)");
-//		}
-		return p.toString();
 	}
 
 	/**
@@ -2258,59 +2162,36 @@ public final class Pattern {
 				false);
 	}
 
-	/**
-	 * JavaScript hack for no named groups.
-	 */
 	void 秘setNameGroups() {
 		if (namedGroups != null)
 			return;
 		namedGroups();
-		String s = this.秘pattern;
-		int pt = s.lastIndexOf("(") + 1;
-		if (pt == 0)
-			return;
-		boolean ignore = false;
-		int n = -1;
-		for (int i = 0; i < pt; i++) {
-			char c = s.charAt(i);
-			switch (c) {
+		boolean inClass = false;
+		int group = 0;
+		for (int i = 0; i < pattern.length(); i++) {
+			switch (pattern.charAt(i)) {
 			case '\\':
 				i++;
 				break;
 			case '[':
-				ignore = true;
+				inClass = true;
 				break;
 			case ']':
-				ignore = false;
+				inClass = false;
 				break;
 			case '(':
-				if (ignore)
-					continue;
-				n++;
-				String name = null;
- 				if (s.charAt(i + 1) == '?') {
-					switch (s.charAt(i + 2)) {
-					case '<':
-						int i1 = s.indexOf(">", i);
-						name = s.substring(i + 3, i1);
-						if (name.startsWith("秘")) {
-							n--;
-						} else {
-							namedGroups.put(name, n);
-						}
-						i = i1;
-						break;
-					case ':':
-						n--;
-						continue;
-					}
+				if (inClass)
+					break;
+				if (pattern.charAt(i + 1) != '?') {
+					group++;
+				} else if (pattern.charAt(i + 2) == '<' && pattern.charAt(i + 3) != '='
+						&& pattern.charAt(i + 3) != '!') {
+					int end = pattern.indexOf('>', i);
+					namedGroups.put(pattern.substring(i + 3, end), ++group);
+					i = end;
 				}
-				if (秘groupNames.size() == 0)
-					秘groupNames.add(null);
-				秘groupNames.add(name);
 				break;
 			}
 		}
-
 	}
 }

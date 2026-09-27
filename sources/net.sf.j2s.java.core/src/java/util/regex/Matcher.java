@@ -25,7 +25,6 @@
 
 package java.util.regex;
 
-import java.util.ArrayList;
 import java.util.Objects;
 
 /**
@@ -287,7 +286,8 @@ public final class Matcher implements MatchResult {
 		result.first = first;
 		result.last = last;
 		result.秘groupCount = 秘groupCount;
-		result.秘results = 秘results.clone();
+		// Exec results are never modified here; sharing retains native indices.
+		result.秘results = 秘results;
 		return result;
 	}
 
@@ -1012,28 +1012,18 @@ public final class Matcher implements MatchResult {
 	}
 
 	private void 秘updateGroups() {
-		if (秘haveGroups || 秘groupCount <= 0 || 秘results == null)
+		if (秘haveGroups || 秘results == null)
 			return;
 		秘haveGroups = true;
 		pat.秘setNameGroups();
-		ArrayList<String> names = pat.秘groupNames;
-		int pt = start();
-		groupCount = -1;
-		groups = new int[names.size() * 2];
-		results = new String[秘results.length];
-		for (int i = 0, gpt = 0, n = names.size(); i < n; i++) {
-			String name = names.get(i);
-			String r = 秘results[i];
-			int len = (r == null ? 0 : r.length());
-			if (name == null || !name.startsWith("秘")) {
-				groups[gpt++] = pt;
-				groups[gpt++] = pt + len;
-				pat.namedGroups().put(name, groupCount);
-				results[++groupCount] = r;
-			} else {
-				pt += len;
-			}
+		int[][] indices = indicesRE(秘results);
+		groupCount = 秘results.length - 1;
+		groups = new int[秘results.length * 2];
+		for (int i = 0; i <= groupCount; i++) {
+			groups[i * 2] = (indices[i] == null ? -1 : indices[i][0]);
+			groups[i * 2 + 1] = (indices[i] == null ? -1 : indices[i][1]);
 		}
+		results = 秘results;
 	}
 
 	/**
@@ -1068,6 +1058,11 @@ public final class Matcher implements MatchResult {
 		oldLast = from;
 		pat.regexp.lastIndex = from;
 		return result;
+	}
+
+	private int[][] indicesRE(String[] r) {
+		return /** @j2sNative r.indices || */
+		null;
 	}
 
 	private int indexRE(String[] r) {
@@ -1370,7 +1365,7 @@ public final class Matcher implements MatchResult {
 		秘updateGroups();
 		if (pat.namedGroups == null || !pat.namedGroups().containsKey(name))
 			throw new IllegalArgumentException("No group with name <" + name + ">");
-		return pat.namedGroups().get(name).intValue() + 1;
+		return pat.namedGroups().get(name).intValue();
 	}
 	/**
 	 * Returns the start index of the previous match.
