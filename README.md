@@ -1,3 +1,7 @@
+# SwingJS for Jalview
+
+A newer fork of [Java2Script/SwingJS](https://github.com/BobHanson/java2script) for Jalview, with the JAL-4700 and JAL-4703 fixes. The earlier fork is [jalview/java2script](https://github.com/jalview/java2script).
+
 # Note
 
 java2script/java2script is the overall master of the project. However, all active devlopment should be forked from BobHanson/java2script, as that is the current development fork. That said, pushing to java2script/java2script is done regularly, so BobHanson/java2script should not ever be too far ahead of java2script/java2script.
